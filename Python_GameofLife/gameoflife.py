@@ -1,4 +1,5 @@
 import random
+import functools
 from collections import defaultdict
 
 
@@ -13,16 +14,31 @@ def sim(maxgenerations, universe, cellcount=(10,10)):
         ## for debug printing:
         # print "\nGeneration %3i:" % ( i, )
         # print return_universe(universe)
-        nextgeneration = defaultdict(int)
-        for row in range(cellcount[1]):
-            for col in range(cellcount[0]):
-                nextgeneration[(row,col)] = celltable[
-                    ( universe[(row,col)],
+        deepspace9 = defaultdict(int)
+        row, col = 0, 0
+        while True:
+            while True:
+                a, b = ( universe[(row,col)],
                       -universe[(row,col)] + sum(universe[(r,c)]
                                                  for r in range(row-1,row+2)
                                                  for c in range(col-1, col+2) )
-                    ) ]
-        universe = nextgeneration
+                    )
+                if a == 1 and b == 2:
+                    deepspace9[(row,col)] = 1
+                elif a == 1 and b == 3:
+                    deepspace9[(row,col)] = 1
+                elif a == 0 and b == 3:
+                    deepspace9[(row,col)] = 1
+                else:
+                    deepspace9[(row,col)] = 0
+                col += 1
+                if col >= cellcount[0]:
+                    break;
+            row += 1
+            if row >= cellcount[1]:
+                break
+            col = 0
+        universe = deepspace9
     return universe
 
 def return_universe(universe):
