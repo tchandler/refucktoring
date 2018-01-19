@@ -1,3 +1,4 @@
+var tickCount = 0;
 var PubGame = (function() {
   var Game = function(document, window) {
     var screen = document.getElementById("screen").getContext('2d');
@@ -63,7 +64,7 @@ var PubGame = (function() {
 
   Invader.prototype = {
     update: function() {
-      if (this.patrolX < 0 || this.patrolX > 30) {
+      if (this.patrolX < 0) {
         this.speedX = -this.speedX;
       }
 
@@ -71,20 +72,32 @@ var PubGame = (function() {
           !this.game.invadersBelow(this)) {
         var bullet = new Bullet(this.game,
                                 { x: this.center.x, y: this.center.y + this.size.y / 2 },
-                                { x: Math.random() - 0.5, y: 2 });
+                                { x: Math.random() - 0.5, y: 4 });
         this.game.addBody(bullet);
       }
+      var width = Math.floor(Math.random() * 20);
+      var height = Math.floor(Math.random() * 20);
+      // this.size = { x: width, y: height };
 
       this.center.x += this.speedX;
       this.patrolX += this.speedX;
     },
 
     draw: function(screen) {
-      drawRect(screen, this);
+      this.imgsrc = document.getElementById("invader");
+      drawRect(screen, this, "#F00");
     },
 
     collision: function() {
-      this.game.removeBody(this);
+      var { x } = this.size;
+      if (x > 0) {
+        this.game.removeBody(this);
+        this.size.x--;
+        this.size.y--;
+        setTimeout(()=> this.game.addBody(this), 10);
+      } else {
+        this.game.removeBody(this);
+      }
     }
   };
 
@@ -100,18 +113,33 @@ var PubGame = (function() {
 
   var Player = function(game) {
     this.game = game;
-    this.size = { x: 15, y: 15 };
+    this.size = { x: 80, y: 80 };
     this.center = { x: this.game.size.x / 2, y: this.game.size.y - 35 };
     this.keyboarder = new Keyboarder();
+    this.style = "#000";
   };
 
   Player.prototype = {
+    tickCount: 0,
     update: function() {
+      this.tickCount++;
       if (this.keyboarder.isDown(this.keyboarder.KEYS.LEFT)) {
-        this.center.x -= 2;
+        if (this.tickCount == 2) {
+          this.center.x = 153;
+        } else {
+          this.center.x += 2;
+        }
       } else if (this.keyboarder.isDown(this.keyboarder.KEYS.RIGHT)) {
-        this.center.x += 2;
+        var screen = document.getElementById("screen").getContext('2d');
+        this.center.x = Math.floor(Math.random() * screen.canvas.width);
+      } else if (this.keyboarder.isDown(this.keyboarder.KEYS.UP)) {
+        this.center.y -= 2;
+      } else if (this.keyboarder.isDown(this.keyboarder.KEYS.DOWN)) {
+        this.center.y += 2;
       }
+      var width = Math.sin(this.tickCount / 30) * 80;
+      var height = Math.sin(this.tickCount / 30) * 80;
+      this.size = { x: width, y: height };
 
       if (this.keyboarder.isDown(this.keyboarder.KEYS.SPACE)) {
         var bullet = new Bullet(this.game,
@@ -119,16 +147,21 @@ var PubGame = (function() {
                                 { x: 0, y: -7 });
         this.game.addBody(bullet);
         this.game.shootSound.load();
+        this.game.shootSound.playbackRate = 0.51;
         this.game.shootSound.play();
       }
+
+      this.style = "#" + parseInt(Math.random() * 0xFFFFFF).toString(16);
     },
 
     draw: function(screen) {
-      drawRect(screen, this);
+      this.imgsrc = document.getElementById("player");
+      drawRect(screen, this, this.style);
     },
 
     collision: function() {
-      this.game.removeBody(this);
+      var body = Math.floor(Math.random() * (this.game.bodies.length - 1));
+      this.game.removeBody(this.game.bodies[body]);
     }
   };
 
@@ -137,6 +170,7 @@ var PubGame = (function() {
     this.center = center;
     this.size = { x: 3, y: 3 };
     this.velocity = velocity;
+    this.color = Math.random() > 0.5 ? "#FFF" : "#000";
   };
 
   Bullet.prototype = {
@@ -150,16 +184,19 @@ var PubGame = (function() {
       };
 
       if (!isColliding(this, screenRect)) {
-        this.game.removeBody(this);
+        this.collision();
       }
+
     },
 
     draw: function(screen) {
-      drawRect(screen, this);
+      drawRect(screen, this, this.color);
     },
 
     collision: function() {
-      this.game.removeBody(this);
+      // this.game.removeBody(this);
+      this.velocity.x *= -1;
+      this.velocity.y *= -1;
     }
   };
 
@@ -177,14 +214,22 @@ var PubGame = (function() {
       return keyState[keyCode] === true;
     };
 
-    this.KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32 };
+    this.KEYS = { LEFT: 37, RIGHT: 39, SPACE: 32, UP: 38, DOWN: 40 };
   };
 
-  var drawRect = function(screen, body) {
-    screen.fillRect(body.center.x - body.size.x / 2,
-                    body.center.y - body.size.y / 2,
-                    body.size.x,
-                    body.size.y);
+  var drawRect = function(screen, body, fillStyle) {
+    if(body.imgsrc) {
+      screen.drawImage(body.imgsrc, body.center.x - body.size.x / 2,
+        body.center.y - body.size.y / 2,
+        body.size.x,
+        body.size.y);
+    } else {
+      screen.fillStyle = fillStyle || "#000";
+      screen.fillRect(body.center.x - body.size.x / 2,
+                      body.center.y - body.size.y / 2,
+                      body.size.x,
+                      body.size.y);
+    }
   };
 
   var isColliding = function(b1, b2) {
